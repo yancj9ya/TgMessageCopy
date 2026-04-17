@@ -91,8 +91,16 @@ docker restart tgmessagecopy
 当前行为：
 - 自动检出代码
 - 自动执行 Docker Buildx
-- 自动构建 [`Dockerfile`](Dockerfile)
-- 默认只做构建校验，不推送镜像
+- 自动登录 GHCR（`ghcr.io`）
+- 自动构建并推送 [`Dockerfile`](Dockerfile)
+
+默认推送地址：
+- `ghcr.io/<github用户名或组织名>/tgmessagecopy:latest`
+- `ghcr.io/<github用户名或组织名>/tgmessagecopy:sha-<commit>`
+
+说明：
+- 工作流使用内置 `GITHUB_TOKEN` 推送 GHCR
+- 仓库需要允许 GitHub Actions 写入 packages
 
 ## 项目结构
 
