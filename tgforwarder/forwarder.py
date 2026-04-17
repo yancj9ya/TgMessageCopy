@@ -6,7 +6,7 @@ from telethon import TelegramClient, events
 from telethon.errors import ChatAdminRequiredError, FloodWaitError, RPCError
 
 from .chat_format import normalize_chat_input
-from .filters import keyword_allowed, regex_allowed
+from .filters import keyword_allowed, regex_allowed, explain_keyword_filter, explain_regex_filter
 from .logging_config import logger
 from .paths import MEDIA_DIR, SESSION_DIR, ensure_data_dirs
 from .queue_store import QueueStore
@@ -109,12 +109,14 @@ async def process_message(
     if not message.media and not message_text.strip():
         return True, True
 
-    if not keyword_allowed(message_text, target):
-        logger.info("消息 %s 命中过滤规则，已跳过。", message.id)
+    keyword_reason = explain_keyword_filter(message_text, target)
+    if keyword_reason is not None and not keyword_allowed(message_text, target):
+        logger.info("消息 %s 因关键词过滤被跳过：%s", message.id, keyword_reason)
         return True, True
 
-    if not regex_allowed(message_text, target):
-        logger.info("消息 %s 命中正则过滤规则，已跳过。", message.id)
+    regex_reason = explain_regex_filter(message_text, target)
+    if regex_reason is not None and not regex_allowed(message_text, target):
+        logger.info("消息 %s 因正则过滤被跳过：%s", message.id, regex_reason)
         return True, True
 
     try:
@@ -173,7 +175,10 @@ async def consumer_loop(
         while True:
             if stop_event.is_set() and queue.empty():
                 break
-            task = await queue.get()
+            try:
+                task = await asyncio.wait_for(queue.get(), timeout=0.5)
+            except asyncio.TimeoutError:
+                continue
             runtime_state["queue_size"] = queue.qsize()
             try:
                 ok, should_advance_state = await process_message(
@@ -325,11 +330,7 @@ async def run_forwarder(config: dict[str, Any], state: dict[str, int]) -> None:
         await client.run_until_disconnected()
         stop_event.set()
         await queue.join()
-        consumer_task.cancel()
-        try:
-            await consumer_task
-        except asyncio.CancelledError:
-            pass
+        await consumer_task
     finally:
         if client.is_connected():
             await client.disconnect()

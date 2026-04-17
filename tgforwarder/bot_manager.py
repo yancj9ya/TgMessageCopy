@@ -4,6 +4,7 @@ from typing import Any
 
 from telegram import Update
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import Conflict
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -539,7 +540,15 @@ class BotManager:
         self._application = application
         await application.initialize()
         await application.start()
-        await application.updater.start_polling()
+        try:
+            await application.updater.start_polling()
+        except Conflict as exc:
+            logger.error("检测到 Telegram Bot polling 冲突：%s", exc)
+            logger.error("请确认只保留一个 Bot 实例在运行，否则 getUpdates 会相互冲突。")
+            await application.stop()
+            await application.shutdown()
+            self._application = None
+            return
         logger.info("管理 Bot 已启动。")
 
     async def stop(self) -> None:

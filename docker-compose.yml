@@ -2,11 +2,8 @@ version: "3.9"
 
 services:
   tgmessagecopy:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/yancj9ya/tgmessagecopy:sha-0a47f78
     container_name: tgmessagecopy
     restart: unless-stopped
     volumes:
       - ./data:/app/data
-

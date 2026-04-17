@@ -44,10 +44,13 @@ docker run -d --name tgmessagecopy -v %cd%\data:/app/data tgmessagecopy
 
 已提供文件：[`docker-compose.yml`](docker-compose.yml)
 
+当前 compose 默认直接拉取远程镜像：
+- `ghcr.io/yancj9ya/tgmessagecopy:sha-0a47f78`
+
 启动：
 
 ```cmd
-docker compose up -d --build
+docker compose up -d
 ```
 
 停止：
@@ -57,7 +60,7 @@ docker compose down
 ```
 
 说明：
-- compose 会自动构建 [`Dockerfile`](Dockerfile)
+- compose 会直接拉取 GHCR 远程镜像
 - 宿主机的 [`data/`](data) 目录会挂载到容器内 `/app/data`
 - 配置、日志、状态、队列、session 都会持久化在宿主机 `data/` 中
 
