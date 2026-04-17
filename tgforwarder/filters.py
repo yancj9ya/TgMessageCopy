@@ -1,9 +1,45 @@
 import re
 from typing import Any
 
+from telethon.tl.types import MessageEntityTextUrl, MessageEntityUrl
+
 
 def normalize_text(text: str | None) -> str:
     return (text or "").strip().lower()
+
+
+def extract_searchable_message_text(message) -> str:
+    parts: list[str] = []
+
+    text = getattr(message, "message", None) or getattr(message, "text", None) or ""
+    if text:
+        parts.append(text)
+
+    entities = getattr(message, "entities", None) or []
+    for entity in entities:
+        if isinstance(entity, MessageEntityTextUrl):
+            url = getattr(entity, "url", "")
+            if url:
+                parts.append(url)
+        elif isinstance(entity, MessageEntityUrl):
+            offset = int(getattr(entity, "offset", 0) or 0)
+            length = int(getattr(entity, "length", 0) or 0)
+            if length > 0 and text:
+                parts.append(text[offset:offset + length])
+
+    reply_markup = getattr(message, "reply_markup", None)
+    rows = getattr(reply_markup, "rows", None) or []
+    for row in rows:
+        buttons = getattr(row, "buttons", None) or []
+        for button in buttons:
+            btn_text = getattr(button, "text", "")
+            btn_url = getattr(button, "url", "")
+            if btn_text:
+                parts.append(btn_text)
+            if btn_url:
+                parts.append(btn_url)
+
+    return "\n".join([item for item in parts if item]).strip()
 
 
 def keyword_allowed(message_text: str, target: dict[str, Any]) -> bool:

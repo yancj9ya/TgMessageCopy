@@ -6,7 +6,13 @@ from telethon import TelegramClient, events
 from telethon.errors import ChatAdminRequiredError, FloodWaitError, RPCError
 
 from .chat_format import normalize_chat_input
-from .filters import keyword_allowed, regex_allowed, explain_keyword_filter, explain_regex_filter
+from .filters import (
+    keyword_allowed,
+    regex_allowed,
+    explain_keyword_filter,
+    explain_regex_filter,
+    extract_searchable_message_text,
+)
 from .logging_config import logger
 from .paths import MEDIA_DIR, SESSION_DIR, ensure_data_dirs
 from .queue_store import QueueStore
@@ -105,7 +111,7 @@ async def process_message(
     if not message or not getattr(message, "id", None):
         return False, False
 
-    message_text = message.message or ""
+    message_text = extract_searchable_message_text(message)
     if not message.media and not message_text.strip():
         return True, True
 
