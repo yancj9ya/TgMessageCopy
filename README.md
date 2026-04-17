@@ -58,6 +58,21 @@ docker run -d --name tgmessagecopy -v %cd%\data:/app/data tgmessagecopy
 docker restart tgmessagecopy
 ```
 
+## GitHub Actions 自动构建
+
+已提供工作流文件：[`docker-build.yml`](.github/workflows/docker-build.yml)
+
+触发条件：
+- push 到 `main`
+- push 到 `master`
+- 手动触发 `workflow_dispatch`
+
+当前行为：
+- 自动检出代码
+- 自动执行 Docker Buildx
+- 自动构建 [`Dockerfile`](Dockerfile)
+- 默认只做构建校验，不推送镜像
+
 ## 项目结构
 
 - [`tgmsgcopy.py`](tgmsgcopy.py:1)：程序入口
