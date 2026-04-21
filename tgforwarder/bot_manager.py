@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from telegram import Update
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import Conflict
 from telegram.ext import (
     Application,
@@ -537,8 +537,24 @@ class BotManager:
         application.add_handler(CallbackQueryHandler(self.targets_list_button_cmd, pattern=r"^targets:list$"))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message_cmd))
 
+        commands = [
+            BotCommand("start", "显示帮助信息"),
+            BotCommand("help", "显示帮助信息"),
+            BotCommand("status", "查看运行状态"),
+            BotCommand("targets", "查看转发规则列表"),
+            BotCommand("reload", "重载转发器"),
+            BotCommand("add_target", "添加转发规则"),
+            BotCommand("remove_target", "删除转发规则"),
+            BotCommand("set_blacklist", "设置关键词黑名单"),
+            BotCommand("set_whitelist", "设置关键词白名单"),
+            BotCommand("set_black_regex", "设置正则黑名单"),
+            BotCommand("set_white_regex", "设置正则白名单"),
+            BotCommand("cancel", "取消当前对话流程"),
+        ]
+
         self._application = application
         await application.initialize()
+        await application.bot.set_my_commands(commands)
         await application.start()
         try:
             await application.updater.start_polling()
@@ -549,7 +565,7 @@ class BotManager:
             await application.shutdown()
             self._application = None
             return
-        logger.info("管理 Bot 已启动。")
+        logger.info("管理 Bot 已启动，并已注册快捷命令。")
 
     async def stop(self) -> None:
         if not self._application:
