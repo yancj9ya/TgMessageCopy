@@ -146,25 +146,36 @@ async def process_message(
     except (ChatAdminRequiredError, RPCError) as exc:
         native_forward_disabled.add(state_key)
         logger.warning("规则 %s 首次原生转发失败，后续到下次重载前都将强制使用重发模式: %s", state_key, exc)
-        await safe_forward_message(
-            client,
-            message,
-            destination_entity,
-            target.get("caption_prefix", ""),
-            use_native_forward=False,
-        )
+        try:
+            await safe_forward_message(
+                client,
+                message,
+                destination_entity,
+                target.get("caption_prefix", ""),
+                use_native_forward=False,
+            )
+        except (OSError, asyncio.TimeoutError) as net_exc:
+            logger.warning("消息 %s 降级重发遇到网络异常，保留在持久化队列中稍后重试: %s", message.id, net_exc)
+            return False, False
         return True, True
     except FloodWaitError as exc:
         logger.warning("触发 FloodWait，等待 %s 秒", exc.seconds)
         await asyncio.sleep(exc.seconds)
-        await safe_forward_message(
-            client,
-            message,
-            destination_entity,
-            target.get("caption_prefix", ""),
-            use_native_forward=state_key not in native_forward_disabled,
-        )
+        try:
+            await safe_forward_message(
+                client,
+                message,
+                destination_entity,
+                target.get("caption_prefix", ""),
+                use_native_forward=state_key not in native_forward_disabled,
+            )
+        except (OSError, asyncio.TimeoutError) as net_exc:
+            logger.warning("消息 %s FloodWait 后重试遇到网络异常，保留在持久化队列中稍后重试: %s", message.id, net_exc)
+            return False, False
         return True, True
+    except (OSError, asyncio.TimeoutError) as exc:
+        logger.warning("消息 %s 转发遇到网络异常，保留在持久化队列中稍后重试: %s", message.id, exc)
+        return False, False
 
 
 async def consumer_loop(
@@ -199,6 +210,11 @@ async def consumer_loop(
                     state[task["state_key"]] = task["message"].id
                     save_state(state)
                     queue_store.remove_first_match(task["state_key"], task["message"].id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                message_id = getattr(task.get("message"), "id", "?")
+                logger.exception("消费者处理消息 %s 异常，已跳过本条: %s", message_id, exc)
             finally:
                 queue.task_done()
                 runtime_state["queue_size"] = queue.qsize()
